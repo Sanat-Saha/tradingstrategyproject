@@ -12,56 +12,10 @@ from datetime import date
 import pandas as pd
 import time
 from datetime import datetime,timedelta
+import yfinance as yf
+
 
 input = pd.read_csv("C:\\Users\\Sahil Khare\\Desktop\\trading strategy project\\Input.csv")
-close_min_arr = np.array([])
-close_min_90_perc_arr = np.array([])
-close_min_50_perc_arr = np.array([])
-close_min_10_perc_arr = np.array([])
-run=0
-attempt=1
-while (not(run)):
-    try:
-        print("try="+str(attempt))
-        if(attempt>100):
-            break
-        for scripname in input["scrip"]:
-            print(scripname)
-            
-            data = get_history(symbol=scripname, start=date(2020,2,15), end=date(2020,4,3))    
-         
-            try:
-                close_min = np.array(data[['Close']].min())
-                close_min_90_perc = np.percentile(data['Close'],90)
-                close_min_50_perc = np.percentile(data['Close'],50)
-                close_min_10_perc = np.percentile(data['Close'],10)
-                close_min_arr = np.append(close_min_arr,close_min)
-                close_min_90_perc_arr = np.append(close_min_90_perc_arr,close_min_90_perc)
-                close_min_50_perc_arr = np.append(close_min_50_perc_arr,close_min_50_perc)
-                close_min_10_perc_arr = np.append(close_min_10_perc_arr,close_min_10_perc)
-            except:
-                close_min_90_perc_arr = np.append(close_min_90_perc_arr,2147483647)    
-                close_min_50_perc_arr = np.append(close_min_50_perc_arr,2147483647)
-                close_min_10_perc_arr = np.append(close_min_10_perc_arr,2147483647)
-                close_min_arr = np.append(close_min_arr,2147483647)
-            time.sleep(2)
-            print(close_min_arr)
-            run=1
-            
-    except:
-        run=0
-        attempt=attempt+1
-
-    
-input["close_min"] = close_min_arr    
-input["close_min_50_perc"] = close_min_50_perc_arr
-input["close_min_90_perc"] = close_min_90_perc_arr 
-input["close_min_10_perc"] = close_min_10_perc_arr 
-
-input["Score"]=(input["close_min_10_perc"]-input["buy_price"])/input["close_min_10_perc"]   
-
-input.to_excel("C:\\Users\\Sahil Khare\\Desktop\\trading strategy project\\output.xlsx")
-
 
 def get_analytics_data(scripname,startdate,enddate):
     print("getting analytics data for scrip: "+scripname)
@@ -96,20 +50,8 @@ def get_analytics_data(scripname,startdate,enddate):
 
 def get_historical_data(scripname,startdate,enddate):
     print("getting historical data for scrip: "+scripname)
-    run=0
-    attempt=1
-    while (not(run)):
-        try:
-            print("attempt="+str(attempt))
-            if(attempt>100):
-                break
-            data = get_history(symbol=scripname, start=startdate, end=enddate)
-            print("Historical data retrieved successfully for:" + scripname)
-            run=1
-        except:
-            run=0
-            print("Data retrieval unsuccessful...Trying again for Scrip: "+scripname)
-            attempt=attempt+1
+    query = yf.Ticker(scripname)
+    data = query.history(period="max")
     return data
                 
 
@@ -135,11 +77,12 @@ def buy_sell_matrix(scripname,startdate,enddate,data_whole):
             output.at[index,'sell'] = 0
     return output
 
-def get_profit_loss(data,account_start=1000):
+def get_profit_loss(data,account_start=10000):
     in_position = 0
     account=account_start
     current_value = account
     output = pd.DataFrame(columns=['transaction','CP'])
+    current_value_arr = pd.DataFrame()
     for index,each_date_data in data.iterrows():
         if (each_date_data['buy']==1 and account -  each_date_data['CP'] > 0):
             account = account -  each_date_data['CP']
@@ -152,8 +95,14 @@ def get_profit_loss(data,account_start=1000):
             output.at[index,'transaction'] = "sell"
             output.at[index,'CP'] = each_date_data['CP']            
         current_value = each_date_data['CP']*in_position+account
-        print("cuurentval = "+str(current_value))
-    return account,in_position,current_value,current_value- account_start ,output
+        current_value_arr.at[index,'Value'] = current_value
+    print("cuurentval = "+str(current_value))    
+    profit = current_value- account_start 
+    index = data.index
+    delta = (max(index)-min(index))
+    number_of_years = delta.days/365
+    rate_of_return = ((current_value/account_start)**(1/number_of_years)-1)*100
+    return account,in_position,current_value,profit,output,rate_of_return,number_of_years,current_value_arr
 
 def get_nth_percentile(n,data):
     close_n_perc = np.percentile(data['Close'],n)
@@ -166,33 +115,34 @@ def data_required(scripname,startdate,enddate):
 
 
 def strategy_buy(scripname,date,data_whole):
-    startdate = date + timedelta(-10)
+    startdate = date + timedelta(-3)
     enddate = date
     data = data_whole.loc[startdate:enddate]
     return get_nth_percentile(10,data)
 
 def strategy_sell(scripname,date,data_whole):
-    startdate = date + timedelta(-10)
+    startdate = date + timedelta(-3)
     enddate = date
     data = data_whole.loc[startdate:enddate]
     return get_nth_percentile(70,data)
 
-scripname="SBIN"
+scripname="RELIANCE.NS"
 startdate='2019-01-01'
 start = datetime.strptime(startdate, '%Y-%m-%d')
-enddate='2020-01-01'
+enddate='2020-04-03'
 end = datetime.strptime(enddate, '%Y-%m-%d')
 
     
-data = data_required("SBIN",start,end)
-test = data.loc[datetime.date(start):datetime.date(end)]
+data = get_historical_data(scripname,start,end)
+data = data_required(scripname,start,end)
+#data['Close'].plot()
+
 
 data1 = buy_sell_matrix(scripname,datetime.date(start),datetime.date(end),data)         
-account_cash,stocks_help,value_stock,value,buy_sell_timeframe = get_profit_loss(data1)
+account_cash,stocks_held,value_stock,profit,buy_sell_timeframe,rate,duration,value_arr = get_profit_loss(data1)
+value_arr['Value'].plot()
 
 
-
-cp = strategy_buy("SBIN",end,data)
 
 
 
