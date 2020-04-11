@@ -6,25 +6,17 @@ Created on Sat Apr  4 17:01:09 2020
 """
 
 #import libraries
-def import_libraries():
-    from nsepy import get_history
-    from nsepy import get_quote
-    import numpy as np
-    from datetime import date
-    import pandas as pd
-    import time
-    from datetime import datetime,timedelta
-    import yfinance as yf
-    import os    
+
+from nsepy import get_history
+from nsepy import get_quote
+import numpy as np
+from datetime import date
+import pandas as pd
+import time
+from datetime import datetime,timedelta
+import yfinance as yf
+import os    
     
-
-
-
-
-
-
-
-
 
 def get_analytics_data(scripname,startdate,enddate):
     print("getting analytics data for scrip: "+scripname)
