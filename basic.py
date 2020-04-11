@@ -5,17 +5,26 @@ Created on Sat Apr  4 17:01:09 2020
 @author: Sahil Khare
 """
 
-from nsepy import get_history
-from nsepy import get_quote
-import numpy as np
-from datetime import date
-import pandas as pd
-import time
-from datetime import datetime,timedelta
-import yfinance as yf
+#import libraries
+def import_libraries():
+    from nsepy import get_history
+    from nsepy import get_quote
+    import numpy as np
+    from datetime import date
+    import pandas as pd
+    import time
+    from datetime import datetime,timedelta
+    import yfinance as yf
+    import os    
+    
 
 
-input = pd.read_csv("C:\\Users\\Sahil Khare\\Desktop\\trading strategy project\\Input.csv")
+
+
+
+
+
+
 
 def get_analytics_data(scripname,startdate,enddate):
     print("getting analytics data for scrip: "+scripname)
@@ -52,6 +61,7 @@ def get_historical_data(scripname,startdate,enddate):
     print("getting historical data for scrip: "+scripname)
     query = yf.Ticker(scripname)
     data = query.history(period="max")
+    print(" historical data for scrip: "+scripname+" Retrieved successfully")
     return data
                 
 
@@ -167,26 +177,53 @@ def strategy_sell(scripname,date,data_whole):
         is_sell=0
     return is_sell
 
-scripname_list=["RELIANCE.NS","TCS.NS","INFY.NS","IOC.NS"]
-#scripname_list=["IOC.NS"]
-startdate='2020-04-01'
-start = datetime.strptime(startdate, '%Y-%m-%d')
+
+##converts string to date format  
+def initialize_date(date):
+    return datetime.strptime(date, '%Y-%m-%d')
+
+##read input file for sccrips in scope
+def read_input():
+    cwd = os.getcwd()
+    scripname_list = pd.read_csv(cwd+"\\Desktop\\trading strategy project\\Input.csv")['scrip']
+    return scripname_list
+
+def initialize(scripname_list):
+    for i in range(0,len(scripname_list)):
+        scripname_list[i] = scripname_list[i]+".NS"
+    return scripname_list
+        
+
+
+##initialize dates between which you want to test your strategy
+startdate = '2019-01-01'
 enddate='2020-04-09'
-end = datetime.strptime(enddate, '%Y-%m-%d')
+
+##initializes date to date format
+start = initialize_date(startdate)
+end = initialize_date(enddate)
+
 
 
 compare = {}
-for scripname in scripname_list:
-    print(scripname)
-    data = data_required(scripname,start,end)
-    data1 = buy_sell_matrix(scripname,datetime.date(start),datetime.date(end),data)         
-    data2 = get_profit_loss(data1)
+scripname_list = read_input()
+scripname_list = initialize(scripname_list)
 
-    compare[scripname] = data2
+for scripname in scripname_list:
+    try:
+        print(scripname)
+        data = data_required(scripname,start,end)
+        data1 = buy_sell_matrix(scripname,datetime.date(start),datetime.date(end),data)         
+        data2 = get_profit_loss(data1)
+    
+        compare[scripname] = data2
+    except:
+        print("No data found for: " + scripname)
 
 for scripname in scripname_list:
     print(scripname)
     compare[scripname]['current_value_arr'].plot()
+
 
 
 
